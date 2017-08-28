@@ -10,7 +10,7 @@ import javax.annotation.Resource;
 import java.util.List;
 
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(locations = {"classpath:config/spring/spring-datasource.xml"})
+@ContextConfiguration(locations = {"classpath:config/spring/spring-datasource.xml","classpath:config/spring/spring-mybatis-config.xml"})
 public class Test {
 
     @Resource

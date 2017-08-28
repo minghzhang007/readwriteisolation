@@ -5,10 +5,9 @@
        xmlns:aop="http://www.springframework.org/schema/aop"
        xmlns:tx="http://www.springframework.org/schema/tx"
        xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
-http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
-http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
-http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
-
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
 
     <bean class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">
         <property name="locations">
@@ -76,38 +75,6 @@ http://www.springframework.org/schema/tx http://www.springframework.org/schema/t
         <!-- 关闭abanded连接时输出错误日志 -->
         <property name="logAbandoned" value="true"/>
         <property name="filters" value="stat"/>
-    </bean>
-
-    <context:component-scan base-package="com.lewis.readwriteisolation"/>
-
-    <aop:aspectj-autoproxy proxy-target-class="true"/>
-    
-    <bean id="aspect" class="com.lewis.readwriteisolation.aop.RoutingAspect"/>
-
-    <aop:config proxy-target-class="true">
-        <aop:pointcut id="joinpoint" expression="execution(* com.lewis.readwriteisolation.mapper.*.*(..))"/>
-        <aop:aspect ref="aspect">
-            <aop:before method="before" pointcut-ref="joinpoint"/>
-        </aop:aspect>
-    </aop:config>
-
-    <bean id="routingDatasource" class="com.lewis.readwriteisolation.core.route.MyRouteDatasource">
-        <property name="targetDataSources">
-            <map>
-                <entry key="master" value-ref="writeDatasource"/>
-                <entry key="slave" value-ref="readDatasource"/>
-            </map>
-        </property>
-    </bean>
-
-    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
-        <property name="dataSource" ref="routingDatasource"/>
-        <property name="mapperLocations" value="classpath*:config/mapper/*.xml"/>
-    </bean>
-
-    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
-        <property name="basePackage" value="com.lewis.readwriteisolation.mapper"/>
-        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
     </bean>
 
 </beans>
