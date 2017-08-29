@@ -11,32 +11,33 @@
 
     <context:component-scan base-package="com.lewis.readwriteisolation"/>
 
-    <bean id="aspect" class="com.lewis.readwriteisolation.aop.RoutingAspect"></bean>
-
-    <aop:config proxy-target-class="true">
-        <aop:pointcut id="joinpoint" expression="execution(* com.lewis.readwriteisolation.mapper.*.*(..))"/>
-        <aop:aspect ref="aspect">
-            <aop:before method="before" pointcut-ref="joinpoint"/>
-        </aop:aspect>
-    </aop:config>
-
-    <bean id="routingDatasource" class="com.lewis.readwriteisolation.core.route.MyRouteDatasource">
-        <property name="targetDataSources">
-            <map>
-                <entry key="master" value-ref="writeDatasource"/>
-                <entry key="slave" value-ref="readDatasource"/>
-            </map>
+    <bean id="routingDatasource" class="com.lewis.readwriteisolation2.DynamicDatasourceProxy">
+        <property name="writeDataSource" ref="writeDatasource"/>
+        <property name="readDataSources">
+            <list>
+                <ref bean="readDatasource1"/>
+                <ref bean="readDatasource2"/>
+            </list>
         </property>
+        <!--轮询方式-->
+        <property name="readDataSourcePollPattern" value="1"/>
     </bean>
 
     <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
         <property name="dataSource" ref="routingDatasource"/>
-        <property name="mapperLocations" value="classpath*:config/mapper/*.xml"/>
+        <property name="mapperLocations" value="classpath*:config/mapper/UserMapper.xml"/>
+        <property name="configLocation" value="classpath:config/spring/readwriteisolation2/mybatis-config.xml"/>
     </bean>
 
     <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
         <property name="basePackage" value="com.lewis.readwriteisolation.mapper"/>
         <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
     </bean>
+
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="routingDatasource"/>
+    </bean>
+
+    <tx:annotation-driven transaction-manager="transactionManager"/>
 
 </beans>

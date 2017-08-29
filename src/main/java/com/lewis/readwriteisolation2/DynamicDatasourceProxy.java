@@ -20,7 +20,7 @@ public class DynamicDatasourceProxy extends AbstractDynamicDatasourceProxy {
     protected DataSource loadReadDatasource() {
         int index = 1;
 
-        if (getReadDatasourcePoolPattern() == 1) {
+        if (getReadDataSourcePollPattern() == 1) {
             //轮询方式
             long currValue = counter.incrementAndGet();
             if ((currValue + 1) >= MAX_POOL) {
@@ -38,7 +38,8 @@ public class DynamicDatasourceProxy extends AbstractDynamicDatasourceProxy {
             //随机方式
             index = ThreadLocalRandom.current().nextInt(0, getReadDsSize());
         }
-        return getResolvedReadDatasources().get(index);
+        return getResolvedReadDataSources().get(index);
+
     }
 
 

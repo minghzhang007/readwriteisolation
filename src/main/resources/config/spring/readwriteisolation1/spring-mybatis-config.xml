@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-4.3.xsd
+        http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-4.3.xsd
+        http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+        http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
+
+    <context:component-scan base-package="com.lewis.readwriteisolation"/>
+
+    <bean id="aspect" class="com.lewis.readwriteisolation.aop.RoutingAspect"></bean>
+
+    <aop:config proxy-target-class="true">
+        <aop:pointcut id="joinpoint" expression="execution(* com.lewis.readwriteisolation.mapper.*.*(..))"/>
+        <aop:aspect ref="aspect">
+            <aop:before method="before" pointcut-ref="joinpoint"/>
+        </aop:aspect>
+    </aop:config>
+
+    <bean id="routingDatasource" class="com.lewis.readwriteisolation.core.route.MyRouteDatasource">
+        <property name="targetDataSources">
+            <map>
+                <entry key="master" value-ref="writeDatasource"/>
+                <entry key="slave" value-ref="readDatasource"/>
+            </map>
+        </property>
+    </bean>
+
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+        <property name="dataSource" ref="routingDatasource"/>
+        <property name="mapperLocations" value="classpath*:config/mapper/UserMapper.xml"/>
+    </bean>
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.lewis.readwriteisolation.mapper"/>
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+    </bean>
+
+</beans>

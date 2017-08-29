@@ -8,140 +8,164 @@ import org.springframework.util.Assert;
 
 import javax.sql.DataSource;
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * Created by Administrator on 2017/8/28.
  */
 public abstract class AbstractDynamicDatasourceProxy extends AbstractDataSource implements InitializingBean {
 
-    private List<Object> readDatasources;
+    private List<Object> readDataSources;
+    private List<DataSource> resolvedReadDataSources;
 
-    private List<DataSource> resolvedReadDatasources;
+    private Object writeDataSource;
+    private DataSource resolvedWriteDataSource;
 
-    private Object writeDatasource;
-
-    private DataSource resolvedWriteDatasource;
-
-    private int readDatasourcePoolPattern = 0;
+    private int readDataSourcePollPattern = 0;
 
     private int readDsSize;
 
     private boolean defaultAutoCommit = true;
-
     private int defaultTransactionIsolation = Connection.TRANSACTION_READ_COMMITTED;
 
-    private static final String READ = "read";
+    public static final String READ = "read";
 
-    private static final String WRITE = "write";
+    public static final String WRITE = "write";
 
     private DataSourceLookup dataSourceLookup = new JndiDataSourceLookup();
 
+    @Override
     public Connection getConnection() throws SQLException {
-        return (Connection) Proxy.newProxyInstance(ConnectionProxy.class.getClassLoader(), new Class[]{ConnectionProxy.class},
+        return (Connection) Proxy.newProxyInstance(
+                ConnectionProxy.class.getClassLoader(),
+                new Class[]{ConnectionProxy.class},
                 new RWConnectionInvocationHandler());
     }
 
-    public Connection getConnection(String username, String password) throws SQLException {
-        return (Connection) Proxy.newProxyInstance(ConnectionProxy.class.getClassLoader(), new Class[]{ConnectionProxy.class},
+    @Override
+    public Connection getConnection(String username, String password)
+            throws SQLException {
+        return (Connection) Proxy.newProxyInstance(
+                ConnectionProxy.class.getClassLoader(),
+                new Class[]{ConnectionProxy.class},
                 new RWConnectionInvocationHandler(username, password));
     }
-
-    public void afterPropertiesSet() throws Exception {
-        if (writeDatasource == null) {
-            throw new IllegalArgumentException("Property 'writeDataSource' is required");
-        }
-        this.resolvedWriteDatasource = resolveSpecifiedDatasource(writeDatasource);
-
-        this.resolvedReadDatasources = new ArrayList<DataSource>(readDatasources.size());
-        for (Object readDatasource : readDatasources) {
-            this.resolvedReadDatasources.add(resolveSpecifiedDatasource(readDatasource));
-        }
-        this.readDsSize = this.readDatasources.size();
-    }
-
-    protected DataSource determineTargetDatasource(String key) {
-        Assert.notNull(this.resolvedReadDatasources, "DataSource router not initialized");
-        if (WRITE.equals(key)) {
-            return resolvedWriteDatasource;
-        } else {
-            return loadReadDatasource();
-        }
-    }
-
-    protected abstract DataSource loadReadDatasource();
-
-    protected DataSource resolveSpecifiedDatasource(Object datasource) throws IllegalArgumentException {
-        if (datasource instanceof DataSource) {
-            return DataSource.class.cast(datasource);
-        } else if (datasource instanceof String) {
-            return this.dataSourceLookup.getDataSource((String) datasource);
-        } else {
-            throw new IllegalArgumentException("Illegal data source value - only [javax.sql.DataSource] and String supported: "
-                    + datasource);
-        }
-    }
-
 
     public int getReadDsSize() {
         return readDsSize;
     }
 
+    public List<DataSource> getResolvedReadDataSources() {
+        return resolvedReadDataSources;
+    }
+
+    public void afterPropertiesSet() throws Exception {
+
+        if (writeDataSource == null) {
+            throw new IllegalArgumentException("Property 'writeDataSource' is required");
+        }
+        this.resolvedWriteDataSource = resolveSpecifiedDataSource(writeDataSource);
+
+        resolvedReadDataSources = new ArrayList<DataSource>(readDataSources.size());
+        for (Object item : readDataSources) {
+            resolvedReadDataSources.add(resolveSpecifiedDataSource(item));
+        }
+        readDsSize = readDataSources.size();
+    }
+
+    protected DataSource determineTargetDataSource(String key) {
+        Assert.notNull(this.resolvedReadDataSources, "DataSource router not initialized");
+        if (WRITE.equals(key)) {
+            return resolvedWriteDataSource;
+        } else {
+            return loadReadDatasource();
+        }
+    }
+
+    public Logger getParentLogger() {
+        // NOOP Just ignore
+        return null;
+    }
+
+    /**
+     * 获取真实的data source
+     *
+     * @param dataSource (jndi | real data source)
+     * @return
+     * @throws IllegalArgumentException
+     */
+    protected DataSource resolveSpecifiedDataSource(Object dataSource) throws IllegalArgumentException {
+        if (dataSource instanceof DataSource) {
+            return (DataSource) dataSource;
+        } else if (dataSource instanceof String) {
+            return this.dataSourceLookup.getDataSource((String) dataSource);
+        } else {
+            throw new IllegalArgumentException(
+                    "Illegal data source value - only [javax.sql.DataSource] and String supported: " + dataSource);
+        }
+    }
+
+    protected abstract DataSource loadReadDatasource();
+
     public void setReadDsSize(int readDsSize) {
         this.readDsSize = readDsSize;
     }
 
-    public List<DataSource> getResolvedReadDatasources() {
-        return resolvedReadDatasources;
+    public List<Object> getReadDataSources() {
+        return readDataSources;
     }
 
-    public List<Object> getReadDatasources() {
-        return readDatasources;
+    public void setReadDataSources(List<Object> readDataSources) {
+        this.readDataSources = readDataSources;
     }
 
-    public void setReadDatasources(List<Object> readDatasources) {
-        this.readDatasources = readDatasources;
+    public Object getWriteDataSource() {
+        return writeDataSource;
     }
 
-    public void setResolvedReadDatasources(List<DataSource> resolvedReadDatasources) {
-        this.resolvedReadDatasources = resolvedReadDatasources;
+    public void setWriteDataSource(Object writeDataSource) {
+        this.writeDataSource = writeDataSource;
     }
 
-    public Object getWriteDatasource() {
-        return writeDatasource;
+    public void setResolvedReadDataSources(List<DataSource> resolvedReadDataSources) {
+        this.resolvedReadDataSources = resolvedReadDataSources;
     }
 
-    public void setWriteDatasource(Object writeDatasource) {
-        this.writeDatasource = writeDatasource;
+    public DataSource getResolvedWriteDataSource() {
+        return resolvedWriteDataSource;
     }
 
-    public DataSource getResolvedWriteDatasource() {
-        return resolvedWriteDatasource;
+    public void setResolvedWriteDataSource(DataSource resolvedWriteDataSource) {
+        this.resolvedWriteDataSource = resolvedWriteDataSource;
     }
 
-    public void setResolvedWriteDatasource(DataSource resolvedWriteDatasource) {
-        this.resolvedWriteDatasource = resolvedWriteDatasource;
+    public int getReadDataSourcePollPattern() {
+        return readDataSourcePollPattern;
     }
 
-    public int getReadDatasourcePoolPattern() {
-        return readDatasourcePoolPattern;
+    public void setReadDataSourcePollPattern(int readDataSourcePollPattern) {
+        this.readDataSourcePollPattern = readDataSourcePollPattern;
     }
 
-    public void setReadDatasourcePoolPattern(int readDatasourcePoolPattern) {
-        this.readDatasourcePoolPattern = readDatasourcePoolPattern;
-    }
-
+    /**
+     * Invocation handler that defers fetching an actual JDBC Connection
+     * until first creation of a Statement.
+     */
     private class RWConnectionInvocationHandler implements InvocationHandler {
+
         private String username;
 
         private String password;
 
-        private Boolean readOnly = false;
+        private Boolean readOnly = Boolean.FALSE;
+
         private Integer transactionIsolation;
 
         private Boolean autoCommit;
@@ -150,23 +174,24 @@ public abstract class AbstractDynamicDatasourceProxy extends AbstractDataSource 
 
         private Connection target;
 
+        public RWConnectionInvocationHandler() {
+
+        }
+
         public RWConnectionInvocationHandler(String username, String password) {
             this();
             this.username = username;
             this.password = password;
         }
 
-        public RWConnectionInvocationHandler() {
-
-        }
-
-
         public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-            // We must avoid fetching a target Connection for "equals".
-            // Only consider equal when proxies are identical.
+            // Invocation on ConnectionProxy interface coming in...
+
             if (method.getName().equals("equals")) {
-                return (proxy == args[0]) ? Boolean.TRUE : Boolean.FALSE;
-            } else if (method.getName().equals("hashcode")) {
+                // We must avoid fetching a target Connection for "equals".
+                // Only consider equal when proxies are identical.
+                return (proxy == args[0] ? Boolean.TRUE : Boolean.FALSE);
+            } else if (method.getName().equals("hashCode")) {
                 // We must avoid fetching a target Connection for "hashCode",
                 // and we must return the same hash code even when the target
                 // Connection has been fetched: use hashCode of Connection proxy.
@@ -176,11 +201,11 @@ public abstract class AbstractDynamicDatasourceProxy extends AbstractDataSource 
                 return getTargetConnection(method, args);
             }
 
-
             if (!hasTargetConnection()) {
                 // No physical target Connection kept yet ->
                 // resolve transaction demarcation methods without fetching
                 // a physical JDBC Connection until absolutely necessary.
+
                 if (method.getName().equals("toString")) {
                     return "RW Routing DataSource Proxy";
                 } else if (method.getName().equals("isReadOnly")) {
@@ -229,38 +254,65 @@ public abstract class AbstractDynamicDatasourceProxy extends AbstractDataSource 
                     throw new SQLException("Illegal operation: connection is closed");
                 }
             }
-            return method.invoke(target, args);
+
+            // Target Connection already fetched,
+            // or target Connection necessary for current operation ->
+            // invoke method on target connection.
+            try {
+                Connection myTarget = getTargetConnection(method, args);
+                return method.invoke(myTarget, args);
+            } catch (InvocationTargetException ex) {
+                throw ex.getTargetException();
+            }
         }
 
+        /**
+         * Return whether the proxy currently holds a target Connection.
+         */
         private boolean hasTargetConnection() {
-            return this.target != null;
+            return (this.target != null);
         }
 
-        private Object getTargetConnection(Method method, Object[] args) throws SQLException {
+        /**
+         * Return the target Connection, fetching it and initializing it if necessary.
+         */
+        private Connection getTargetConnection(Method operation, Object[] args) throws SQLException {
+
             if (this.target == null) {
                 String key = (String) args[0];
+                // No target Connection held -> fetch one.
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Connecting to database for operation '" + operation.getName() + "'");
+                }
 
-                System.out.println(("Connecting to database for operation '" + method.getName() + "'"));
-                //fetch physical connection from datasource
-                this.target = (this.username != null) ? determineTargetDatasource(key).getConnection(this.username, this.password) :
-                        determineTargetDatasource(key).getConnection();
+                // Fetch physical Connection from DataSource.
+                this.target = (this.username != null) ?
+                        determineTargetDataSource(key).getConnection(this.username, this.password) :
+                        determineTargetDataSource(key).getConnection();
 
+                // If we still lack default connection properties, check them now.
+                //checkDefaultConnectionProperties(this.target);
+
+                // Apply kept transaction settings, if any.
                 if (this.readOnly.booleanValue()) {
                     this.target.setReadOnly(this.readOnly.booleanValue());
                 }
                 if (this.transactionIsolation != null) {
-                    this.target.setTransactionIsolation(transactionIsolation.intValue());
+                    this.target.setTransactionIsolation(this.transactionIsolation.intValue());
                 }
-
                 if (this.autoCommit != null && this.autoCommit.booleanValue() != this.target.getAutoCommit()) {
                     this.target.setAutoCommit(this.autoCommit.booleanValue());
                 }
-
-            }else{
-                System.out.println("Using existing database connection for operation '" + method.getName() + "'");
+            } else {
+                // Target Connection already held -> return it.
+                if (logger.isDebugEnabled()) {
+                    logger.debug("Using existing database connection for operation '" + operation.getName() + "'");
+                }
             }
 
             return this.target;
         }
     }
+
 }
+
