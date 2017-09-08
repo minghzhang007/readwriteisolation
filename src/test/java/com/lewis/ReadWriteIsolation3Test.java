@@ -25,9 +25,7 @@ public class ReadWriteIsolation3Test {
         u.setUserId(17);
         u.setAge(25);
         u.setName("war3");
-        Assert.assertEquals(userService.insert(u), true);
-
-        List<User> all = userService.findAll();
-        System.out.println(all.toString());
+        List<User> users = userService.testWriteAndRead(u);
+        System.out.println(users);
     }
 }
